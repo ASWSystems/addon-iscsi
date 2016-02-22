@@ -111,11 +111,11 @@ find_vacant_lun()
 	rm -f $tmp_file
 
 	if ((tgt_found == 0)); then
-		echo "Error: could not find a LUN for target $tid, guessing 1 as next vacant LUN"
+		echo "Error: could not find target $tid, guessing 1 as next vacant LUN"
 		return 1
 	fi
 	if ((next_vacant_lun == 0)); then
-		echo "Error: could not find a LUN for target $tid, guessing 1 as next vacant LUN"
+		echo "No LUNs found for target $tid, guessing 1 as next vacant LUN"
 		return 1
 	fi
 
@@ -183,9 +183,9 @@ initiators=$*
 verify_params
 
 # Check if tgtd is running (we should have 2 daemons)
-tgtd_count=`pidof tgtd | wc -w`
+tgtd_count=`pidof tgtd ietd | wc -w`
 if [ $tgtd_count -lt 1 ]; then
-	echo "tgtd is not running"
+	echo "tgtd or ietd is not running"
 	echo "Exiting..."
 	exit 1
 fi
