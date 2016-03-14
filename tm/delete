@@ -60,12 +60,12 @@ while IFS= read -r -d '' element; do
     XPATH_ELEMENTS[i++]="$element"
 done < <(onevm show -x $VMID| $XPATH \
                     /VM/TEMPLATE/DISK[DISK_ID=$DISK_ID]/SOURCE \
-                    /VM/TEMPLATE/DISK[DISK_ID=$DISK_ID]/PERSISTENT)
+                    /VM/TEMPLATE/DISK[DISK_ID=$DISK_ID]/CLONE)
 
 IQN="${XPATH_ELEMENTS[j++]}"
-PERSISTENT="${XPATH_ELEMENTS[j++]}"
+CLONE="${XPATH_ELEMENTS[j++]}"
 
-if [ -z "$PERSISTENT" ]; then
+if [ "$CLONE" = "YES" ]; then
     NEW_IQN=$IQN-$VMID
 else
     NEW_IQN=$IQN
@@ -96,6 +96,23 @@ fi
 
 LOGOUT_CMD=$(cat <<EOF
     set -e
+
+    if [ "$CLONE" != "YES" ]; then
+        # Only for persistent images
+
+        # Remove my usage counter if exists
+        rm "/dev/shm/addon-iscsi/$IQN-$VMID" || /bin/true
+
+        # Resolve full path
+        DISK_BY_PATH=\$(ls /dev/disk/by-path/*$IQN-lun-1)
+
+        # Test for usage
+        if [ -n "\$(/usr/bin/find /dev/shm/addon-iscsi -lname \$DISK_BY_PATH)" ]; then
+            # If still used by other VM, skip logout - only possible for CDROMs
+            exit 0
+        fi
+    fi
+
     $SUDO $(iscsiadm_logout $NEW_IQN)
 EOF
 )
@@ -103,7 +120,7 @@ EOF
 ssh_exec_and_log "$DST_HOST" "$LOGOUT_CMD" \
     "Error logging out $NEW_IQN"
 
-if [ "$PERSISTENT" = "YES" ]; then
+if [ "$CLONE" != "YES" ]; then
     exit 0
 fi
 
