@@ -74,6 +74,10 @@ log "Logging out $IQN"
 
 LOGOUT_CMD=$(cat <<EOF
     set -e
+
+    # Remove my usage counter if exists
+    rm "/dev/shm/addon-iscsi/$IQN-$VMID" || /bin/true
+
     $SUDO $(iscsiadm_logout "$IQN")
 EOF
 )

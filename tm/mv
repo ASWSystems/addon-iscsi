@@ -102,6 +102,10 @@ if is_iscsi "$SRC_HOST"; then
 
     LOGOUT_CMD=$(cat <<EOF
         set -e
+
+        # Remove my usage counter if exists
+        rm "/dev/shm/addon-iscsi/$IQN-$VMID" || /bin/true
+
         $SUDO $(iscsiadm_logout "$IQN")
 EOF
 )
@@ -117,19 +121,26 @@ if is_iscsi "$DST_HOST"; then
     LINK_CMD=$(cat <<EOF
     set -e
 
-    # discover and login
-    mkdir -p $DST_DIR
-    $SUDO $(iscsiadm_discovery "$TARGET_HOST")
-    $SUDO $(iscsiadm_login "$IQN" "$TARGET_HOST")
+    if [ ! -L /dev/disk/by-path/*$IQN-lun-1 ]
+    then
+        # if not already logged in discover and login
+        mkdir -p $DST_DIR
+        $SUDO $(iscsiadm_discovery "$TARGET_HOST")
+        $SUDO $(iscsiadm_login "$IQN" "$TARGET_HOST")
 
-    # poll
-    while [ ! -L /dev/disk/by-path/*$IQN-lun-1 ]; do
-        sleep 1
-    done
+        # poll
+        while [ ! -L /dev/disk/by-path/*$IQN-lun-1 ]; do
+            sleep 1
+        done
+    fi
 
     # link
     DISK_BY_PATH=\$(ls /dev/disk/by-path/*$IQN-lun-1)
     ln -sf "\$DISK_BY_PATH" "$DST_PATH"
+
+    # Local computing node usage counters used for reduntant connections (possible only for CDROMs)
+    mkdir -p /dev/shm/addon-iscsi
+    ln -sf "\$DISK_BY_PATH" "/dev/shm/addon-iscsi/$IQN-$VMID"
 EOF
 )
 
