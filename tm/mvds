@@ -60,13 +60,13 @@ while IFS= read -r -d '' element; do
 done < <(onevm show -x $VMID| $XPATH \
                     /VM/TEMPLATE/DISK[DISK_ID=$DISK_ID]/SOURCE \
                     /VM/TEMPLATE/DISK[DISK_ID=$DISK_ID]/SAVE_AS \
-                    /VM/TEMPLATE/DISK[DISK_ID=$DISK_ID]/PERSISTENT)
+                    /VM/TEMPLATE/DISK[DISK_ID=$DISK_ID]/CLONE)
 
 IQN="${XPATH_ELEMENTS[j++]}"
 SAVE_AS="${XPATH_ELEMENTS[j++]}"
-PERSISTENT="${XPATH_ELEMENTS[j++]}"
+CLONE="${XPATH_ELEMENTS[j++]}"
 
-if [ -z "$PERSISTENT" ]; then
+if [ "$CLONE" = "YES" ]; then
     IQN=$IQN-$VMID
 fi
 
@@ -108,7 +108,7 @@ CLONE_CMD=$(cat <<EOF
     $SUDO $DD if=$SOURCE_DEV of=$TARGET_DEV bs=2M
 
     # remove if source_dev is not persistent
-    if [ -z "$PERSISTENT" ]; then
+    if [ "$CLONE" = "YES" ]; then
         TID=\$($SUDO $(tgtadm_get_tid_for_iqn "$IQN"))
 
         $SUDO $(tgtadm_target_delete "\$TID")
